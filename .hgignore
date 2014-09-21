@@ -1,0 +1,8 @@
+syntax: glob
+.DS_Store
+node_modules
+private
+coverage
+.nodemonignore
+*.sublime-workspace
+config.toml
