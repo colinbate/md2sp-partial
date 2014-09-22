@@ -1,101 +1,176 @@
 var fs = require('fs');
+var path = require('path');
+var Q = require('kew');
 var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
 var toml = require('toml');
 var marked = require('marked');
-var configFile = 'config.toml';
+var configFile = 'md2sp.toml';
 
 marked.setOptions({
   sanitize: false,
   smartypants: true
 });
 
-var filename = process.argv[2];
-
-if (!filename) {
-  console.log('Usage: node index.js <filename>');
-  process.exit(1);
-}
-
-var config = toml.parse(fs.readFileSync(configFile, {encoding: 'utf8'}));
-if (!config || !config.connection || ! config.connection.url) {
-  console.log('Config file (' + configFile + ') needs to exist with a connection url.');
-  process.exit(4);
-}
-if (!config.frontmatter) {
-  config.frontmatter = {};
-}
-
-var fullfile = fs.readFileSync(filename, {encoding:'utf8'});
-
-var fileparts = fullfile.split(config.frontmatter.separator || '+++');
-
-if (fileparts.length && !fileparts[0]) {
-  fileparts.shift();
-}
-
-var meta = toml.parse(fileparts[0].trim());
-var payload;
-if (config.connection.sendmarkdown) {
-  payload = fileparts[1].trim();
-} else {
-  payload = marked(fileparts[1].trim());
-}
-
-if (!meta.title) {
-  console.log('No title provided in your file... please add one.');
-  process.exit(2);
-}
-
-var ntlm = false;
-if (config.connection.ntlm) {
-  ntlm = {
-    username: config.connection.username,
-    password: config.connection.password,
-    workstation: config.connection.workstation || process.env.COMPUTERNAME || 'WORKSTATION',
-    domain: config.connection.domain || ''
-  };
-}
-
-var blog = new MetaWeblog(config.connection.url, {
-  ntlm: ntlm,
-  sanitize: false
-});
-
-var post = {
-  dateCreated: meta.date || new Date(),
-  title: meta.title,
-  description: payload,
+var readFileAsync = function (filename) {
+  return Q.nfcall(fs.readFile, filename, {encoding: 'utf8'});
 };
 
-if (meta.categories) {
-  post.categories = meta.categories;
+var writeFileAsync = function (filename, data) {
+  return Q.nfcall(fs.writeFile, filename, data, {encoding: 'utf8'});
 }
+
+var configPromise;
+function readConfig(dir) {
+  return readFileAsync(path.join(dir, configFile)).fail(function () {
+    var updir = path.join(dir, '..');
+    if (updir === dir) {
+      return new Error('Could not find ' + configFile + ' file in current or parent folder.');
+    }
+    return readConfig(updir);
+  });
+}
+
+var loadConfig = function () {
+  var cwd = process.cwd();
+
+  return readConfig(cwd).then(toml.parse).then(function (config) {
+    if (!config || !config.url) {
+      return new Error('Config file could not be parsed, or invalid.');
+    }
+    if (!config.frontmatter) {
+      config.frontmatter = {};
+    }
+    config.apiUser = config.ntlm ? '' : config.username;
+    config.apiPass = config.ntlm ? '' : config.password;
+    config.blogid = config.blogid || '';
+    return config;
+  });
+};
+
+var getConfig = function (force) {
+  if (!configPromise || force) {
+    configPromise = loadConfig();
+  }
+  return configPromise;
+};
+
+var parseContent = function (content) {
+  var fileparts = content.split(config.frontmatter.separator || '+++'),
+      meta,
+      payload,
+      post;
+
+  if (fileparts.length && !fileparts[0]) {
+    fileparts.shift();
+  }
+
+  if (!fileparts.length) {
+    return new Error('No content provided.');
+  }
+
+  meta = toml.parse(fileparts[0].trim());
+  if (config.sendmarkdown) {
+    payload = fileparts[1].trim();
+  } else {
+    payload = marked(fileparts[1].trim());
+  }
+
+  if (!meta.title) {
+    return new Error('No title provided in your content... please add one.');
+  }
+
+  post = {
+    dateCreated: meta.date || new Date(),
+    title: meta.title,
+    description: payload,
+  };
+  if (meta.categories) {
+    post.categories = meta.categories;
+  }
+
+  return post;
+};
+
+var parseFile = function (filename) {
+  return readFileAsync(filename).then(parseContent);
+};
+
+var getBlog = function (config) {
+  var ntlm = false;
+  if (config.ntlm) {
+    ntlm = {
+      username: config.username,
+      password: config.password,
+      workstation: config.workstation || process.env.COMPUTERNAME || 'WORKSTATION',
+      domain: config.domain || ''
+    };
+  }
+
+  var blog = new MetaWeblog(config.url, {
+    ntlm: ntlm,
+    sanitize: false
+  });
+  blog.config = config;
+  return blog;
+};
+
+var newPost = function (filename) {
+  return Q.all([parseFile(filename), getConfig().then(getBlog)]).then(function (all) {
+    var c = all[1].config,
+        post = Q.nfcall(all[1].newPost, c.blogid, c.apiUser, c.apiPass, all[0], true);
+    return post.fail(function (msg) {
+      return new Error('Could not create new post: ' msg.message);
+    });
+  });
+};
+
 
 //console.dir(post);
 
-var apiUser = config.connection.ntlm ? '' : config.connection.username;
-var apiPass = config.connection.ntlm ? '' : config.connection.password;
-
-var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-blog.getUsersBlogs(apiKey, apiUser, apiPass, function (err, data, res) {
-  if (err) {
-    console.log('Could not fetch blogs successfully:');
-    console.dir(err);
-    process.exit(3);
+var setupSpBlog = function (url, user, pass) {
+  if (url.slice(-12) === 'default.aspx') {
+    url = slice(0, -12);
   }
-  console.dir(data);
-});
+  if (url[url.length - 1] !== '/') {
+    url += '/';
+  }
+  return setupBlog(url + '_layout/metaweblog.aspx');
+};
 
-// blog.newPost(config.connection.blogid || '',
-//              apiUser,
-//              apiPass,
-//              post,
-//              true,
-//              function (err, data, res) {
-//   if (err) {
-//     console.log('Could not post successfully:');
-//     console.dir(err);
-//     process.exit(3);
-//   }
-//   console.log('Success. New post ID: ' + data);
-// });
+var setupBlog = function (endpoint, user, pass) {
+  var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      info = {
+        url: endpoint,
+        blogid: void 0,
+        ntlm: false,
+        username: user,
+        password: pass,
+        sendmarkdown: false,
+        frontmatter: {
+          language: 'toml',
+          separator: '+++'
+        }
+      },
+      blog;
+  // 1. getUsersBlogs() with API credentials.
+  blog = getBlog(info);
+  blog.getUsersBlogs(apiKey, apiUser, apiPass, function (err, data, res) {
+    if (err) {
+      console.log('Could not fetch blogs successfully:');
+      console.dir(err);
+      process.exit(3);
+    }
+    console.dir(data);
+  });
+  // 2. If 1 fails, getUsersBlogs with NTLM.
+  // 3. Set ntlm option
+  // 4. Set blog id
+  // 5. Save info to blog.toml
+};
+
+module.exports = {
+  parseFile: parseFile,
+  newPost: newPost,
+  updatePost: updatePost,
+  setupBlog: setupBlog
+};
