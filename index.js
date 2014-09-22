@@ -3,6 +3,7 @@ var path = require('path');
 var Q = require('kew');
 var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
 var toml = require('toml');
+var tomlify = require('tomlify');
 var marked = require('marked');
 var configFile = 'md2sp.toml';
 
@@ -125,8 +126,6 @@ var newPost = function (filename) {
 };
 
 
-//console.dir(post);
-
 var setupSpBlog = function (url, user, pass) {
   if (url.slice(-12) === 'default.aspx') {
     url = slice(0, -12);
@@ -137,14 +136,28 @@ var setupSpBlog = function (url, user, pass) {
   return setupBlog(url + '_layout/metaweblog.aspx');
 };
 
-var setupBlog = function (endpoint, user, pass) {
+var getUsersBlogs = function (config) {
   var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      info = {
+      blog = getBlog(config),
+      getBlogs = blog.getUsersBlogs.bind(blog, apiKey);
+  return Q.nfcall(getBlogs, config.apiUser, config.apiPass);
+};
+
+var saveConfig = function (config) {
+  var tomlStr = tomlify(config),
+      file = path.join(process.cwd(), configFile);
+  return writeFileAsync(file, tomlStr);
+};
+
+var setupBlog = function (endpoint, user, pass) {
+  var info = {
         url: endpoint,
         blogid: void 0,
         ntlm: false,
         username: user,
         password: pass,
+        apiUser: user,
+        apiPass: pass,
         sendmarkdown: false,
         frontmatter: {
           language: 'toml',
@@ -153,24 +166,27 @@ var setupBlog = function (endpoint, user, pass) {
       },
       blog;
   // 1. getUsersBlogs() with API credentials.
-  blog = getBlog(info);
-  blog.getUsersBlogs(apiKey, apiUser, apiPass, function (err, data, res) {
-    if (err) {
-      console.log('Could not fetch blogs successfully:');
-      console.dir(err);
-      process.exit(3);
-    }
-    console.dir(data);
-  });
-  // 2. If 1 fails, getUsersBlogs with NTLM.
-  // 3. Set ntlm option
-  // 4. Set blog id
-  // 5. Save info to blog.toml
+  return getUsersBlogs(info).fail(function () {
+    // 2. If 1 fails, getUsersBlogs with NTLM.
+    // 3. Set ntlm option
+    info.ntlm = true;
+    info.apiUser = '';
+    info.apiPass = '';
+    return getUsersBlogs(info);
+  }).then(function (id) {
+    delete info.apiUser;
+    delete info.apiPass;
+    // 4. Set blog id
+    info.blogid = id;
+    return info;
+    // 5. Save info to toml file
+  }).then(saveConfig);
 };
 
 module.exports = {
   parseFile: parseFile,
   newPost: newPost,
-  updatePost: updatePost,
+  //updatePost: updatePost,
   setupBlog: setupBlog
+  setupSpBlog: setupSpBlog
 };
