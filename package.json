@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Takes a markdown + TOML file and posts it to a MetaWeblog API blog.",
   "main": "index.js",
+  "bin": {
+    "md2sp": "bin/md2sp.js"
+  },
+  "preferGlobal": "true",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,11 +23,13 @@
   "author": "Colin Bate <colin@colinbate.com>",
   "license": "MIT",
   "dependencies": {
-    "httpreq": "~0.3.4",
-    "async": "~0.2.9",
     "agentkeepalive": "~0.1.5",
-    "xml2json": "~0.5.1",
+    "async": "~0.2.9",
+    "httpreq": "~0.3.4",
+    "kew": "^0.4.0",
+    "marked": "~0.3.2",
     "toml": "~2.0.6",
-    "marked": "~0.3.2"
+    "tomlify": "^0.2.0",
+    "xml2json": "~0.5.1"
   }
 }
