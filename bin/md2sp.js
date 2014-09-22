@@ -1,4 +1,4 @@
-
+#!/usr/bin/env node
 
 
 var filename = process.argv[2];
