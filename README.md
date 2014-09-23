@@ -1,6 +1,6 @@
 # Markdown 2 Sharepoint
 
-Takes documents with TOML front matter and markdown content and posts them to a Sharepoint blog (or other MetaWeblog API blog). I've tested it with Sharepoint 2010 and Wordpress 4.0 but it should work with others.
+Takes documents with TOML front matter and markdown content and posts them to a Sharepoint blog (or other MetaWeblog API blog). I've tested it with Sharepoint 2010 and Wordpress 4.0 but it should work with others. Supports normal API authentication as well as NTLM authentication.
 
 ## Installation
 
@@ -31,6 +31,7 @@ In order to edit a post, you will need to add the postid field to the metadata i
 * Create a post file generator
 * Support uploading images
 * Save current date back to date-less posts
-* Detect existing config files during setup
+* ~~Detect existing config files during setup~~
+* Add support for proxies
 * Add tests!
 

@@ -6,9 +6,10 @@ prompt.delimiter = '';
 var Q = require('kew');
 var args = process.argv.slice(2);
 var filename, update = false, setup = false;
+
 if (!args.length) {
-  // Setup?
-  setup = {};
+  // Setup
+  setup = true;
 } else if (args[0] === '-e') {
   // Update!
   update = true;
@@ -34,15 +35,26 @@ var confirmAsync = function (question) {
   return Q.nfcall(confirmprompt, question);
 };
 
+var promptForOverwrite = function () {
+  var confirm = 'Do you want to set up a blog here?';
+  return md2sp.getConfig().then(function (conf) {
+    console.log('WARNING: There is already a blog set up for this folder (' + conf.blogname + ')');
+    console.log('Setting up a blog here will override your existing configuration');
+    return confirm;
+  }).fail(function () {
+    return confirm;
+  });
+};
+
 var promptForType = function () {
-  return confirmAsync('Do you want to set up a blog here?').then(function (answer) {
+  return promptForOverwrite().then(confirmAsync).then(function (answer) {
     if (!answer) {
       process.exit(0);
       return;
     }
     return confirmAsync('Is it a Sharepoint blog?');
   });
-}
+};
 
 var promptForInfo = function (sp) {
   var asking = [],
