@@ -102,10 +102,19 @@ if (setup) {
   promptForType().then(promptForInfo).then(promptSavePass).then(md2sp.setup).end();
 } else if (filename) {
   md2sp.getConfig(false, checkPassword).then(function (conf) {
-    console.log('Creating new post on ' + conf.blogname + ' from ' + filename);
-    return md2sp.newPost(filename);
-  }).then(function (id) {
-    console.log('New post ID: ' + id);
+    if (!update) {
+      console.log('Creating new post on ' + conf.blogname + ' from ' + filename);
+      return md2sp.newPost(filename).then(function (id) {
+        console.log('New post ID: ' + id);
+      });
+    } else {
+      console.log('Updating post from ' + filename);
+      return md2sp.editPost(filename).then(function (success) {
+        if (success) {
+          console.log('Post updated.');
+        }
+      });
+    }
   }).fail(function (err) {
     console.log(''+err);
     process.exit(1);
