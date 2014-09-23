@@ -22,10 +22,11 @@ var writeFileAsync = function (filename, data) {
 
 var configPromise;
 function readConfig(dir) {
-  return readFileAsync(path.join(dir, configFile)).fail(function () {
+  var checkFile = path.join(dir, configFile);
+  return readFileAsync(checkFile).fail(function () {
     var updir = path.join(dir, '..');
     if (updir === dir) {
-      return new Error('Could not find ' + configFile + ' file in current or parent folder.');
+      throw new Error('Could not find ' + configFile + ' file in current or parent folder.');
     }
     return readConfig(updir);
   });
@@ -36,7 +37,7 @@ var loadConfig = function () {
 
   return readConfig(cwd).then(toml.parse).then(function (config) {
     if (!config || !config.url) {
-      return new Error('Config file could not be parsed, or invalid.');
+      throw new Error('Config file could not be parsed, or invalid.');
     }
     if (!config.frontmatter) {
       config.frontmatter = {};
@@ -69,7 +70,7 @@ var parseContent = function (content, config) {
   }
 
   if (!fileparts.length) {
-    return new Error('No content provided.');
+    throw new Error('No content provided.');
   }
 
   meta = toml.parse(fileparts[0].trim());
@@ -80,7 +81,7 @@ var parseContent = function (content, config) {
   }
 
   if (!meta.title) {
-    return new Error('No title provided in your content... please add one.');
+    throw new Error('No title provided in your content... please add one.');
   }
   meta.dateCreated = meta.date || new Date(),
   delete meta.date;
@@ -97,7 +98,7 @@ var parseFile = function (filename) {
 var getBlog = function (config) {
   var ntlm = false;
   if (!config.url) {
-    return new Error('No URL provided to setup.')
+    throw new Error('No URL provided to setup.')
   }
   if (config.ntlm) {
     ntlm = {
