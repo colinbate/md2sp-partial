@@ -131,6 +131,27 @@ var newPost = function (filename) {
   });
 };
 
+var editPost = function (filename) {
+  return Q.all([parseFile(filename), getConfig().then(getBlog)]).then(function (all) {
+    var c = all[1].config,
+        def = Q.defer(),
+        postId = all[0].postid;
+    if (typeof postId === 'undefined') {
+      def.reject(new Error('No postid value present in file.'));
+      return def.promise;
+    }
+    delete all[0].postid;
+    all[1].editPost(postId, c.apiUser, c.apiPass, all[0], true, function (err, data) {
+      if (err) {
+        err = err || { faultString: 'Unknown error' };
+        def.reject(new Error('Could not update post: ' + err.faultString));
+        return;
+      }
+      def.resolve(data);
+    });
+    return def.promise;
+  });
+};
 
 var setupSpBlog = function (config) {
   if (config.url.slice(-12) === 'default.aspx') {
@@ -216,6 +237,6 @@ module.exports = {
   getConfig: getConfig,
   parseFile: parseFile,
   newPost: newPost,
-  //updatePost: updatePost,
+  editPost: editPost,
   setup: setup
 };
