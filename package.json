@@ -1,6 +1,6 @@
 {
-  "name": "markdown2sharepoint",
-  "version": "0.1.0",
+  "name": "md2sp",
+  "version": "0.3.0",
   "description": "Takes a markdown + TOML file and posts it to a MetaWeblog API blog.",
   "main": "index.js",
   "bin": {
