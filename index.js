@@ -239,5 +239,6 @@ module.exports = {
   parseFile: parseFile,
   newPost: newPost,
   editPost: editPost,
-  setup: setup
+  setup: setup,
+  configFile: configFile
 };
