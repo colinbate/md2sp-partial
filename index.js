@@ -61,9 +61,16 @@ var getConfig = function (force, filter) {
 };
 
 var savePostFile = function (meta, payload, config, filename) {
-  var metaStr, content;
+  var metaStr, content, update = false;
   if (!meta.date) {
     meta.date = new Date();
+    update = true;
+  }
+  if (!meta.postid && config.postid) {
+    meta.postid = config.postid;
+    update = true;
+  }
+  if (update) {
     metaStr = tomlify(meta, {delims: config.frontmatter.separator});
     content = metaStr + payload;
     return writeFileAsync(filename, content);
@@ -168,6 +175,13 @@ var editPost = function (filename) {
   });
 };
 
+var addPostId = function (filename, conf, postid) {
+  return readFileAsync(filename).then(function (str) {
+    conf.postid = postid;
+    return parseContent(str, conf, filename);
+  });
+};
+
 var setupSpBlog = function (config) {
   if (config.url.slice(-12) === 'default.aspx') {
     config.url = config.url.slice(0, -12);
@@ -253,6 +267,7 @@ module.exports = {
   parseFile: parseFile,
   newPost: newPost,
   editPost: editPost,
+  addPostId: addPostId,
   setup: setup,
   configFile: configFile
 };
