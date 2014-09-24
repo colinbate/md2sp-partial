@@ -116,13 +116,13 @@ if (setup) {
   md2sp.getConfig(false, checkPassword).then(function (conf) {
     if (!update) {
       console.log('Creating new post on ' + conf.blogname + ' from ' + filename);
-      return md2sp.newPost(filename).then(function (id) {
-        console.log('New post ID: ' + id);
+      return md2sp.newPost(filename).then(function (obj) {
+        console.log('New post ID: ' + obj.id);
       });
     } else {
       console.log('Updating post from ' + filename);
-      return md2sp.editPost(filename).then(function (success) {
-        if (success) {
+      return md2sp.editPost(filename).then(function (obj) {
+        if (obj.success) {
           console.log('Post updated.');
         }
       });

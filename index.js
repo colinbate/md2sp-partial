@@ -42,6 +42,7 @@ var loadConfig = function () {
     if (!config.frontmatter) {
       config.frontmatter = {};
     }
+    config.frontmatter.separator = config.frontmatter.separator || '+++';
     config.apiUser = config.ntlm ? '' : config.username;
     config.apiPass = config.ntlm ? '' : config.password;
     config.blogid = config.blogid || '';
@@ -59,11 +60,21 @@ var getConfig = function (force, filter) {
   return configPromise;
 };
 
-var parseContent = function (content, config) {
-  var fileparts = content.split(config.frontmatter.separator || '+++'),
+var savePostFile = function (meta, payload, config, filename) {
+  var metaStr, content;
+  if (!meta.date) {
+    meta.date = new Date();
+    metaStr = tomlify(meta, {delims: config.frontmatter.separator});
+    content = metaStr + payload;
+    return writeFileAsync(filename, content);
+  }
+  return Q.resolve(true);
+};
+
+var parseContent = function (content, config, filename) {
+  var fileparts = content.split(config.frontmatter.separator),
       meta,
-      payload,
-      post;
+      payload;
 
   if (fileparts.length && !fileparts[0]) {
     fileparts.shift();
@@ -83,15 +94,18 @@ var parseContent = function (content, config) {
   if (!meta.title) {
     throw new Error('No title provided in your content... please add one.');
   }
-  meta.dateCreated = meta.date || new Date(),
-  delete meta.date;
-  meta.description = payload;
-  return meta;
+
+  return savePostFile(meta, fileparts[1], config, filename).then(function () {
+    meta.dateCreated = meta.date;
+    delete meta.date;
+    meta.description = payload;
+    return meta;
+  });
 };
 
 var parseFile = function (filename) {
   return Q.all([readFileAsync(filename), getConfig()]).then(function (res) {
-    return parseContent(res[0], res[1]);
+    return parseContent(res[0], res[1], filename);
   });
 };
 
@@ -126,7 +140,7 @@ var newPost = function (filename) {
         def.reject(new Error('Could not create new post: ' + err.faultString));
         return;
       }
-      def.resolve(data);
+      def.resolve({filename: filename, id: data});
     });
     return def.promise;
   });
@@ -148,7 +162,7 @@ var editPost = function (filename) {
         def.reject(new Error('Could not update post: ' + err.faultString));
         return;
       }
-      def.resolve(data);
+      def.resolve({filename: filename, success: data});
     });
     return def.promise;
   });
