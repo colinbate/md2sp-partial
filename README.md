@@ -48,7 +48,7 @@ Any other metadata fields are passed through to the MetaWeblog API as specified.
 ## To Do
 
 * Handle deleting posts
-* Automatically add `postid` to newly added files
+* ~~Automatically add `postid` to newly added files~~
 * Create a post file generator
 * Support uploading images
 * ~~Save current date back to date-less posts~~

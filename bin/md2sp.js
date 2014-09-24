@@ -118,6 +118,7 @@ if (setup) {
       console.log('Creating new post on ' + conf.blogname + ' from ' + filename);
       return md2sp.newPost(filename).then(function (obj) {
         console.log('New post ID: ' + obj.id);
+        return md2sp.addPostId(filename, conf, obj.id);
       });
     } else {
       console.log('Updating post from ' + filename);
