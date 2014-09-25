@@ -157,7 +157,7 @@ var editPost = function (filename) {
   return Q.all([parseFile(filename), getConfig().then(getBlog)]).then(function (all) {
     var c = all[1].config,
         def = Q.defer(),
-        postId = all[0].postid;
+        postId = '' + all[0].postid;
     if (typeof postId === 'undefined') {
       def.reject(new Error('No postid value present in file.'));
       return def.promise;
