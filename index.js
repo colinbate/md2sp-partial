@@ -1,4 +1,4 @@
-var fs = require('fs');
+var files = require('./lib/files');
 var path = require('path');
 var Q = require('kew');
 var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
@@ -12,18 +12,10 @@ marked.setOptions({
   smartypants: true
 });
 
-var readFileAsync = function (filename) {
-  return Q.nfcall(fs.readFile, filename, {encoding: 'utf8'});
-};
-
-var writeFileAsync = function (filename, data) {
-  return Q.nfcall(fs.writeFile, filename, data, {encoding: 'utf8'});
-}
-
 var configPromise;
 function readConfig(dir) {
   var checkFile = path.join(dir, configFile);
-  return readFileAsync(checkFile).fail(function () {
+  return files.readAsync(checkFile).fail(function () {
     var updir = path.join(dir, '..');
     if (updir === dir) {
       throw new Error('Could not find ' + configFile + ' file in current or parent folder.');
@@ -73,7 +65,7 @@ var savePostFile = function (meta, payload, config, filename) {
   if (update) {
     metaStr = tomlify(meta, {delims: config.frontmatter.separator});
     content = metaStr + payload;
-    return writeFileAsync(filename, content);
+    return files.writeAsync(filename, content);
   }
   return Q.resolve(true);
 };
@@ -92,12 +84,11 @@ var parseContent = function (content, config, filename) {
   }
 
   meta = toml.parse(fileparts[0].trim());
-  if (config.sendmarkdown) {
+  if ((config.sendmarkdown || meta.sendmarkdown) && meta.sendmarkdown !== false) {
     payload = fileparts[1].trim();
   } else {
     payload = marked(fileparts[1].trim());
   }
-
   if (!meta.title) {
     throw new Error('No title provided in your content... please add one.');
   }
@@ -111,7 +102,7 @@ var parseContent = function (content, config, filename) {
 };
 
 var parseFile = function (filename) {
-  return Q.all([readFileAsync(filename), getConfig()]).then(function (res) {
+  return Q.all([files.readAsync(filename), getConfig()]).then(function (res) {
     return parseContent(res[0], res[1], filename);
   });
 };
@@ -176,7 +167,7 @@ var editPost = function (filename) {
 };
 
 var addPostId = function (filename, conf, postid) {
-  return readFileAsync(filename).then(function (str) {
+  return files.readAsync(filename).then(function (str) {
     conf.postid = postid;
     return parseContent(str, conf, filename);
   });
@@ -214,7 +205,7 @@ var saveConfig = function (config) {
   var tomlStr = tomlify(config),
       file = path.join(process.cwd(), configFile);
   console.log('Writing config file: ./' + configFile);
-  return writeFileAsync(file, tomlStr);
+  return files.writeAsync(file, tomlStr);
 };
 
 var setupBlog = function (info) {
