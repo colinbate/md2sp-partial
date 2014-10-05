@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 var md2sp = require('../index');
-var prompt = require('prompt');
-prompt.message = '';
-prompt.delimiter = '';
+var generator = require('../lib/generator');
+var ask = require('../lib/ask');
 var Q = require('kew');
 var args = process.argv.slice(2);
-var filename, update = false, setup = false;
+var filename, update = false, setup = false, generate;
 
 if (!args.length) {
   // Setup
   setup = true;
+} else if (args[0] === 'new') {
+  // Generator
+  generate = {
+    interactive: (args[1] === '-i'),
+    title: (args[1] === '-i') ? args[2] : args[1]
+  };
 } else if (args[0] === '-e') {
   // Update!
   update = true;
@@ -19,21 +24,12 @@ if (!args.length) {
   filename = args[0]
 }
 
-if (!setup && !filename) {
+if (!setup && !filename && !generate) {
   console.log('Usage:');
   console.log('    md2sp [[-e] <filename>]');
+  console.log('    md2sp new [-i] <title>');
   process.exit(1);
 }
-
-var promptAsync = function (specs) {
-  var getprompt = prompt.get.bind(prompt);
-  return Q.nfcall(getprompt, specs);
-};
-
-var confirmAsync = function (question) {
-  var confirmprompt = prompt.confirm.bind(prompt);
-  return Q.nfcall(confirmprompt, question);
-};
 
 var promptForOverwrite = function () {
   var confirm = 'Do you want to set up a blog here?';
@@ -47,12 +43,12 @@ var promptForOverwrite = function () {
 };
 
 var promptForType = function () {
-  return promptForOverwrite().then(confirmAsync).then(function (answer) {
+  return promptForOverwrite().then(ask.confirmAsync).then(function (answer) {
     if (!answer) {
       process.exit(0);
       return;
     }
-    return confirmAsync('Is it a Sharepoint blog?');
+    return ask.confirmAsync('Is it a Sharepoint blog?');
   });
 };
 
@@ -77,21 +73,21 @@ var promptForInfo = function (sp) {
     hidden: true
   });
 
-  return promptAsync(asking).then(function (obj) {
+  return ask.promptAsync(asking).then(function (obj) {
     obj.sharepoint = sp;
     return obj;
   });
 };
 
 var promptSavePass = function (obj) {
-  return confirmAsync('Do you want to save your password (as plain text)?').then(function (save) {
+  return ask.confirmAsync('Do you want to save your password (as plain text)?').then(function (save) {
     obj.savepass = save;
     return obj;
   });
 };
 
 var promptForPassword = function () {
-  return promptAsync([{
+  return ask.promptAsync([{
     name: 'password',
     description: 'Enter your password:',
     hidden: true
@@ -109,8 +105,10 @@ var checkPassword = function (config) {
   return config;
 };
 
-if (setup) {
-  prompt.start();
+if (generate) {
+  generator.create(generate.title, generate.interactive);
+} else if (setup) {
+  ask.start();
   promptForType().then(promptForInfo).then(promptSavePass).then(md2sp.setup).end();
 } else if (filename) {
   md2sp.getConfig(false, checkPassword).then(function (conf) {
