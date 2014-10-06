@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 var md2sp = require('../index');
 var generator = require('../lib/generator');
+var config = require('../lib/config');
 var ask = require('../lib/ask');
-var Q = require('kew');
 var args = process.argv.slice(2);
 var filename, update = false, setup = false, generate;
 
@@ -21,7 +21,7 @@ if (!args.length) {
   filename = args[1];
 } else {
   // New
-  filename = args[0]
+  filename = args[0];
 }
 
 if (!setup && !filename && !generate) {
@@ -33,7 +33,7 @@ if (!setup && !filename && !generate) {
 
 var promptForOverwrite = function () {
   var confirm = 'Do you want to set up a blog here?';
-  return md2sp.getConfig().then(function (conf) {
+  return config.get().then(function (conf) {
     console.log('WARNING: There is already a blog set up for this folder (' + conf.blogname + ')');
     console.log('Setting up a blog here will override your existing configuration');
     return confirm;
@@ -106,12 +106,15 @@ var checkPassword = function (config) {
 };
 
 if (generate) {
-  generator.create(generate.title, generate.interactive);
+  generator.create(generate.title, generate.interactive).fail(function (err) {
+    console.log(''+err);
+    process.exit(1);
+  });
 } else if (setup) {
   ask.start();
   promptForType().then(promptForInfo).then(promptSavePass).then(md2sp.setup).end();
 } else if (filename) {
-  md2sp.getConfig(false, checkPassword).then(function (conf) {
+  config.get(false, checkPassword).then(function (conf) {
     if (!update) {
       console.log('Creating new post on ' + conf.blogname + ' from ' + filename);
       return md2sp.newPost(filename).then(function (obj) {

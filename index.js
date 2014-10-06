@@ -1,56 +1,15 @@
 var files = require('./lib/files');
-var path = require('path');
+var config = require('./lib/config');
 var Q = require('kew');
 var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
 var toml = require('toml');
 var tomlify = require('tomlify');
 var marked = require('marked');
-var configFile = 'md2sp.toml';
 
 marked.setOptions({
   sanitize: false,
   smartypants: true
 });
-
-var configPromise;
-function readConfig(dir) {
-  var checkFile = path.join(dir, configFile);
-  return files.readAsync(checkFile).fail(function () {
-    var updir = path.join(dir, '..');
-    if (updir === dir) {
-      throw new Error('Could not find ' + configFile + ' file in current or parent folder.');
-    }
-    return readConfig(updir);
-  });
-}
-
-var loadConfig = function () {
-  var cwd = process.cwd();
-
-  return readConfig(cwd).then(toml.parse).then(function (config) {
-    if (!config || !config.url) {
-      throw new Error('Config file could not be parsed, or invalid.');
-    }
-    if (!config.frontmatter) {
-      config.frontmatter = {};
-    }
-    config.frontmatter.separator = config.frontmatter.separator || '+++';
-    config.apiUser = config.ntlm ? '' : config.username;
-    config.apiPass = config.ntlm ? '' : config.password;
-    config.blogid = config.blogid || '';
-    return config;
-  });
-};
-
-var getConfig = function (force, filter) {
-  if (!configPromise || force) {
-    configPromise = loadConfig();
-    if (filter) {
-      configPromise = configPromise.then(filter);
-    }
-  }
-  return configPromise;
-};
 
 var savePostFile = function (meta, payload, config, filename) {
   var metaStr, content, update = false;
@@ -102,7 +61,7 @@ var parseContent = function (content, config, filename) {
 };
 
 var parseFile = function (filename) {
-  return Q.all([files.readAsync(filename), getConfig()]).then(function (res) {
+  return Q.all([files.readAsync(filename), config.get()]).then(function (res) {
     return parseContent(res[0], res[1], filename);
   });
 };
@@ -110,7 +69,7 @@ var parseFile = function (filename) {
 var getBlog = function (config) {
   var ntlm = false;
   if (!config.url) {
-    throw new Error('No URL provided to setup.')
+    throw new Error('No URL provided to setup.');
   }
   if (config.ntlm) {
     ntlm = {
@@ -130,7 +89,7 @@ var getBlog = function (config) {
 };
 
 var newPost = function (filename) {
-  return Q.all([parseFile(filename), getConfig().then(getBlog)]).then(function (all) {
+  return Q.all([parseFile(filename), config.get().then(getBlog)]).then(function (all) {
     var c = all[1].config,
         def = Q.defer();
     all[1].newPost(c.blogid, c.apiUser, c.apiPass, all[0], true, function (err, data) {
@@ -145,7 +104,7 @@ var newPost = function (filename) {
 };
 
 var editPost = function (filename) {
-  return Q.all([parseFile(filename), getConfig().then(getBlog)]).then(function (all) {
+  return Q.all([parseFile(filename), config.get().then(getBlog)]).then(function (all) {
     var c = all[1].config,
         def = Q.defer(),
         postId = '' + all[0].postid;
@@ -173,17 +132,6 @@ var addPostId = function (filename, conf, postid) {
   });
 };
 
-var setupSpBlog = function (config) {
-  if (config.url.slice(-12) === 'default.aspx') {
-    config.url = config.url.slice(0, -12);
-  }
-  if (config.url[config.url.length - 1] !== '/') {
-    config.url += '/';
-  }
-  config.url += '_layouts/metaweblog.aspx';
-  return setupBlog(config);
-};
-
 var getUsersBlogs = function (config) {
   var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
       blog = getBlog(config),
@@ -201,15 +149,7 @@ var getUsersBlogs = function (config) {
   return def.promise;
 };
 
-var saveConfig = function (config) {
-  var tomlStr = tomlify(config),
-      file = path.join(process.cwd(), configFile);
-  console.log('Writing config file: ./' + configFile);
-  return files.writeAsync(file, tomlStr);
-};
-
 var setupBlog = function (info) {
-  var blog;
   info.blogid = void 0;
   info.ntlm = false;
   info.apiUser = info.username;
@@ -221,7 +161,7 @@ var setupBlog = function (info) {
   };
 
   // 1. getUsersBlogs() with API credentials.
-  return getUsersBlogs(info).fail(function (err) {
+  return getUsersBlogs(info).fail(function () {
     // 2. If 1 fails, getUsersBlogs with NTLM.
     // 3. Set ntlm option
     info.ntlm = true;
@@ -243,7 +183,18 @@ var setupBlog = function (info) {
 
     return info;
     // 5. Save info to toml file
-  }).then(saveConfig);
+  }).then(config.save);
+};
+
+var setupSpBlog = function (config) {
+  if (config.url.slice(-12) === 'default.aspx') {
+    config.url = config.url.slice(0, -12);
+  }
+  if (config.url[config.url.length - 1] !== '/') {
+    config.url += '/';
+  }
+  config.url += '_layouts/metaweblog.aspx';
+  return setupBlog(config);
 };
 
 var setup = function (config) {
@@ -254,11 +205,9 @@ var setup = function (config) {
 };
 
 module.exports = {
-  getConfig: getConfig,
   parseFile: parseFile,
   newPost: newPost,
   editPost: editPost,
   addPostId: addPostId,
-  setup: setup,
-  configFile: configFile
+  setup: setup
 };
