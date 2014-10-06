@@ -12,7 +12,7 @@ if (!args.length) {
 } else if (args[0] === 'new') {
   // Generator
   generate = {
-    interactive: (args[1] === '-i'),
+    interactive: (args.length === 1 || args[1] === '-i'),
     title: (args[1] === '-i') ? args[2] : args[1]
   };
 } else if (args[0] === '-e') {
