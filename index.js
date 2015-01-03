@@ -79,6 +79,15 @@ var getBlog = function (config) {
       domain: config.domain || ''
     };
   }
+  if (config.cert) {
+    try {
+      var caCert = require('fs').readFileSync(config.certFile);
+      // add CA certificate to httpsAgent setup
+      require('./lib/httpsAgent').getCACert = function () { return caCert; };
+    } catch (err) { 
+      return new Error('Could not load CA Certificate:' + err.faultString);
+    }
+  }
 
   var blog = new MetaWeblog(config.url, {
     ntlm: ntlm,
