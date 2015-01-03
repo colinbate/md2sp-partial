@@ -105,6 +105,23 @@ var checkPassword = function (config) {
   return config;
 };
 
+var promptForCert = function (obj) {
+    return ask.confirmAsync('Do you need a Certificate Authority Certificate?')
+      .then(function (needCert) {
+        obj.cert = needCert;
+        if(needCert) {
+          return ask.promptAsync([{
+            name: 'certFile',
+            description: 'Your CA Certificate file:'
+          }]).then(function (result) {
+            obj.certFile = result.certFile;
+            return obj;
+          });
+        }
+        return obj;
+    });
+};
+
 if (generate) {
   generator.create(generate.title, generate.interactive).fail(function (err) {
     console.log(''+err);
@@ -112,7 +129,12 @@ if (generate) {
   });
 } else if (setup) {
   ask.start();
-  promptForType().then(promptForInfo).then(promptSavePass).then(md2sp.setup).end();
+  promptForType()
+    .then(promptForInfo)
+    .then(promptSavePass)
+    .then(promptForCert)
+    .then(md2sp.setup)
+    .end();
 } else if (filename) {
   config.get(false, checkPassword).then(function (conf) {
     if (!update) {
