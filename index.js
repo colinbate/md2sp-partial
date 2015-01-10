@@ -193,7 +193,11 @@ var setupSpBlog = function (config) {
   if (config.url[config.url.length - 1] !== '/') {
     config.url += '/';
   }
-  config.url += '_layouts/metaweblog.aspx';
+  config.url += '_layouts';
+  if (config.isSharepoint2013) {
+    config.url += '/15';
+  }
+  config.url += '/metaweblog.aspx';
   return setupBlog(config);
 };
 
