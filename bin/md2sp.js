@@ -48,13 +48,26 @@ var promptForType = function () {
       process.exit(0);
       return;
     }
-    return ask.confirmAsync('Is it a Sharepoint blog?');
+    return ask.confirmAsync('Is it a Sharepoint blog?').then(function (sp) {
+      if (!sp) {
+        return {
+          sp: false,
+          is2013: false
+        };
+      }
+      return ask.confirmAsync('Is it Sharepoint 2013?').then(function (is2013) {
+        return {
+          sp: true,
+          is2013: is2013
+        };
+      });
+    });
   });
 };
 
-var promptForInfo = function (sp) {
+var promptForInfo = function (obj) {
   var asking = [],
-      descUrl = sp ? 'Enter blog URL:' : 'Enter metaweblog endpoint:';
+      descUrl = obj.sp ? 'Enter blog URL:' : 'Enter metaweblog endpoint:';  
   // ask for url
   asking.push({
     name: 'url',
@@ -73,9 +86,10 @@ var promptForInfo = function (sp) {
     hidden: true
   });
 
-  return ask.promptAsync(asking).then(function (obj) {
-    obj.sharepoint = sp;
-    return obj;
+  return ask.promptAsync(asking).then(function (info) {
+    info.sharepoint = obj.sp;
+    info.isSharepoint2013 = obj.is2013;
+    return info;
   });
 };
 
