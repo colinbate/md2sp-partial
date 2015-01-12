@@ -41,7 +41,7 @@ var parseContent = function (content, config, filename) {
   if ((config.sendmarkdown || meta.sendmarkdown) && meta.sendmarkdown !== false) {
     payload = Q.resolve(fileparts[1].trim());
   } else {
-    payload = formatter.generateHtmlAsync(fileparts[1].trim());
+    payload = formatter.generateHtmlAsync(fileparts[1].trim(), config);
   }
   if (!meta.title) {
     throw new Error('No title provided in your content... please add one.');
