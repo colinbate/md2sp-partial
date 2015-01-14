@@ -67,7 +67,12 @@ var parseFile = function (filename) {
 };
 
 var getBlog = function (config) {
-  var ntlm = false;
+  var ntlm = false,
+      opts = {
+        sanitize: false
+      },
+      promise = Q.resolve(false);
+      
   if (!config.url) {
     throw new Error('No URL provided to setup.');
   }
@@ -79,22 +84,19 @@ var getBlog = function (config) {
       domain: config.domain || ''
     };
   }
-  if (config.cert) {
-    try {
-      var caCert = require('fs').readFileSync(config.certFile);
-      // add CA certificate to httpsAgent setup
-      require('./lib/httpsAgent').getCACert = function () { return caCert; };
-    } catch (err) { 
-      return new Error('Could not load CA Certificate:' + err.faultString);
+  opts.ntlm =  ntlm;
+  
+  if (config.cert) {    
+    promise = files.readAsync(config.certFile);
+  }  
+  return promise.then(function (caCert) {
+    if (caCert) {
+      opts.caCert = caCert;
     }
-  }
-
-  var blog = new MetaWeblog(config.url, {
-    ntlm: ntlm,
-    sanitize: false
+    var blog = new MetaWeblog(config.url, opts);
+    blog.config = config;
+    return blog;
   });
-  blog.config = config;
-  return blog;
 };
 
 var newPost = function (filename) {
@@ -142,20 +144,20 @@ var addPostId = function (filename, conf, postid) {
 };
 
 var getUsersBlogs = function (config) {
-  var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      blog = getBlog(config),
-      def = Q.defer();
-  blog.getUsersBlogs(apiKey, config.apiUser, config.apiPass, function (err, data) {
-    if (err || !data) {
-      def.reject(new Error('Could not get users blogs'));
-      return;
-    }
-    if (data && data.length) {
-      data = data[0];
-    }
-    def.resolve(data);
+  return getBlog(config).then(function (blog) {
+    var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',      
+        def = Q.defer();
+    blog.getUsersBlogs(apiKey, config.apiUser, config.apiPass, function (err, data) {
+      if (err || !data) {
+        def.reject(new Error('Could not get users blogs'));        
+      }
+      if (data && data.length) {
+        data = data[0];
+      }
+      def.resolve(data);
+    });
+    return def.promise;
   });
-  return def.promise;
 };
 
 var setupBlog = function (info) {
