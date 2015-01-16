@@ -4,12 +4,7 @@ var Q = require('kew');
 var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
 var toml = require('toml');
 var tomlify = require('tomlify');
-var marked = require('marked');
-
-marked.setOptions({
-  sanitize: false,
-  smartypants: true
-});
+var formatter = require('./lib/formatter');
 
 var savePostFile = function (meta, payload, config, filename) {
   var metaStr, content, update = false;
@@ -44,20 +39,22 @@ var parseContent = function (content, config, filename) {
 
   meta = toml.parse(fileparts[0].trim());
   if ((config.sendmarkdown || meta.sendmarkdown) && meta.sendmarkdown !== false) {
-    payload = fileparts[1].trim();
+    payload = Q.resolve(fileparts[1].trim());
   } else {
-    payload = marked(fileparts[1].trim());
+    payload = formatter.generateHtmlAsync(fileparts[1].trim(), config);
   }
   if (!meta.title) {
     throw new Error('No title provided in your content... please add one.');
   }
 
-  return savePostFile(meta, fileparts[1], config, filename).then(function () {
-    meta.dateCreated = meta.date;
-    delete meta.date;
-    meta.description = payload;
-    return meta;
-  });
+  return Q.all([payload,savePostFile(meta, fileparts[1], config, filename)])
+    .then(function (all) {
+        var content = all[0];
+        meta.dateCreated = meta.date;
+        delete meta.date;
+        meta.description = content;
+        return meta;
+    });
 };
 
 var parseFile = function (filename) {
