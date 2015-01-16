@@ -72,8 +72,16 @@ var promptForInfo = function (sp) {
     description: 'Your password:',
     hidden: true
   });
+  // ask for style sheet
+  asking.push({
+    name: 'cssFile',
+    description: 'Your sytle sheet (blank to omit):',
+  });
 
   return ask.promptAsync(asking).then(function (obj) {
+    if(obj.cssFile === '') {
+      delete obj.cssFile;
+    }
     obj.sharepoint = sp;
     return obj;
   });
