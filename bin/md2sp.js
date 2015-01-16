@@ -142,7 +142,10 @@ if (generate) {
     .then(promptSavePass)
     .then(promptForCert)
     .then(md2sp.setup)
-    .end();
+    .fail(function (err) {
+      console.log('' + err);
+      process.exit(1);
+    });
 } else if (filename) {
   config.get(false, checkPassword).then(function (conf) {
     if (!update) {
