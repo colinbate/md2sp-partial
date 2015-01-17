@@ -5,6 +5,7 @@ var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
 var toml = require('toml');
 var tomlify = require('tomlify');
 var formatter = require('./lib/formatter');
+var urlChecker = require('./lib/urlchecker');
 
 var savePostFile = function (meta, payload, config, filename) {
   var metaStr, content, update = false;
@@ -63,7 +64,7 @@ var parseFile = function (filename) {
   });
 };
 
-var getBlog = function (config) {
+var createBlogConfig = function (config) {
   var ntlm = false,
       opts = {
         sanitize: false
@@ -90,10 +91,24 @@ var getBlog = function (config) {
     if (caCert) {
       opts.caCert = caCert;
     }
-    var blog = new MetaWeblog(config.url, opts);
-    blog.config = config;
-    return blog;
+    return {
+      options: opts,
+      config: config
+    };
   });
+};
+
+var checkUrl = function (blogConfig) {
+  return urlChecker.followRedirects(blogConfig.config.url, blogConfig.options).then(function (url) {
+    blogConfig.config.url = url;
+    return blogConfig;
+  });  
+};
+
+var getBlog = function (blogConfig) {
+  var blog = new MetaWeblog(blogConfig.url, blogConfig.options);
+  blog.config = blogConfig.config;
+  return blog;
 };
 
 var newPost = function (filename) {
@@ -141,7 +156,7 @@ var addPostId = function (filename, conf, postid) {
 };
 
 var getUsersBlogs = function (config) {
-  return getBlog(config).then(function (blog) {
+  return createBlogConfig(config).then(checkUrl).then(getBlog).then(function (blog) {
     var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',      
         def = Q.defer();
     blog.getUsersBlogs(apiKey, config.apiUser, config.apiPass, function (err, data) {
