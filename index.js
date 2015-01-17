@@ -85,7 +85,7 @@ var getBlog = function (config) {
   
   if (config.cert) {    
     promise = files.readAsync(config.certFile);
-  }  
+  } 
   return promise.then(function (caCert) {
     if (caCert) {
       opts.caCert = caCert;
