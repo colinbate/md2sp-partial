@@ -48,26 +48,13 @@ var promptForType = function () {
       process.exit(0);
       return;
     }
-    return ask.confirmAsync('Is it a Sharepoint blog?').then(function (sp) {
-      if (!sp) {
-        return {
-          sp: false,
-          is2013: false
-        };
-      }
-      return ask.confirmAsync('Is it Sharepoint 2013?').then(function (is2013) {
-        return {
-          sp: true,
-          is2013: is2013
-        };
-      });
-    });
+    return ask.confirmAsync('Is it a Sharepoint blog?');
   });
 };
 
-var promptForInfo = function (obj) {
+var promptForInfo = function (sp) {
   var asking = [],
-      descUrl = obj.sp ? 'Enter blog URL:' : 'Enter metaweblog endpoint:';  
+      descUrl = sp ? 'Enter blog URL:' : 'Enter metaweblog endpoint:';
   // ask for url
   asking.push({
     name: 'url',
@@ -85,11 +72,18 @@ var promptForInfo = function (obj) {
     description: 'Your password:',
     hidden: true
   });
+  // ask for style sheet
+  asking.push({
+    name: 'cssFile',
+    description: 'Your sytle sheet (blank to omit):',
+  });
 
-  return ask.promptAsync(asking).then(function (info) {
-    info.sharepoint = obj.sp;
-    info.isSharepoint2013 = obj.is2013;
-    return info;
+  return ask.promptAsync(asking).then(function (obj) {
+    if(obj.cssFile === '') {
+      delete obj.cssFile;
+    }
+    obj.sharepoint = sp;
+    return obj;
   });
 };
 
@@ -119,6 +113,23 @@ var checkPassword = function (config) {
   return config;
 };
 
+var promptForCert = function (obj) {
+    return ask.confirmAsync('Do you need a Certificate Authority Certificate?')
+      .then(function (needCert) {
+        obj.cert = needCert;
+        if(needCert) {
+          return ask.promptAsync([{
+            name: 'certFile',
+            description: 'Your CA Certificate file:'
+          }]).then(function (result) {
+            obj.certFile = result.certFile;
+            return obj;
+          });
+        }
+        return obj;
+    });
+};
+
 if (generate) {
   generator.create(generate.title, generate.interactive).fail(function (err) {
     console.log(''+err);
@@ -126,7 +137,15 @@ if (generate) {
   });
 } else if (setup) {
   ask.start();
-  promptForType().then(promptForInfo).then(promptSavePass).then(md2sp.setup).end();
+  promptForType()
+    .then(promptForInfo)
+    .then(promptSavePass)
+    .then(promptForCert)
+    .then(md2sp.setup)
+    .fail(function (err) {
+      console.log('' + err);
+      process.exit(1);
+    });
 } else if (filename) {
   config.get(false, checkPassword).then(function (conf) {
     if (!update) {

@@ -4,12 +4,7 @@ var Q = require('kew');
 var MetaWeblog = require('./lib/metaweblog').MetaWeblog;
 var toml = require('toml');
 var tomlify = require('tomlify');
-var marked = require('marked');
-
-marked.setOptions({
-  sanitize: false,
-  smartypants: true
-});
+var formatter = require('./lib/formatter');
 
 var savePostFile = function (meta, payload, config, filename) {
   var metaStr, content, update = false;
@@ -44,20 +39,22 @@ var parseContent = function (content, config, filename) {
 
   meta = toml.parse(fileparts[0].trim());
   if ((config.sendmarkdown || meta.sendmarkdown) && meta.sendmarkdown !== false) {
-    payload = fileparts[1].trim();
+    payload = Q.resolve(fileparts[1].trim());
   } else {
-    payload = marked(fileparts[1].trim());
+    payload = formatter.generateHtmlAsync(fileparts[1].trim(), config);
   }
   if (!meta.title) {
     throw new Error('No title provided in your content... please add one.');
   }
 
-  return savePostFile(meta, fileparts[1], config, filename).then(function () {
-    meta.dateCreated = meta.date;
-    delete meta.date;
-    meta.description = payload;
-    return meta;
-  });
+  return Q.all([payload,savePostFile(meta, fileparts[1], config, filename)])
+    .then(function (all) {
+        var content = all[0];
+        meta.dateCreated = meta.date;
+        delete meta.date;
+        meta.description = content;
+        return meta;
+    });
 };
 
 var parseFile = function (filename) {
@@ -67,7 +64,12 @@ var parseFile = function (filename) {
 };
 
 var getBlog = function (config) {
-  var ntlm = false;
+  var ntlm = false,
+      opts = {
+        sanitize: false
+      },
+      promise = Q.resolve(false);
+      
   if (!config.url) {
     throw new Error('No URL provided to setup.');
   }
@@ -79,13 +81,19 @@ var getBlog = function (config) {
       domain: config.domain || ''
     };
   }
-
-  var blog = new MetaWeblog(config.url, {
-    ntlm: ntlm,
-    sanitize: false
+  opts.ntlm =  ntlm;
+  
+  if (config.cert) {    
+    promise = files.readAsync(config.certFile);
+  } 
+  return promise.then(function (caCert) {
+    if (caCert) {
+      opts.caCert = caCert;
+    }
+    var blog = new MetaWeblog(config.url, opts);
+    blog.config = config;
+    return blog;
   });
-  blog.config = config;
-  return blog;
 };
 
 var newPost = function (filename) {
@@ -133,20 +141,20 @@ var addPostId = function (filename, conf, postid) {
 };
 
 var getUsersBlogs = function (config) {
-  var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      blog = getBlog(config),
-      def = Q.defer();
-  blog.getUsersBlogs(apiKey, config.apiUser, config.apiPass, function (err, data) {
-    if (err || !data) {
-      def.reject(new Error('Could not get users blogs'));
-      return;
-    }
-    if (data && data.length) {
-      data = data[0];
-    }
-    def.resolve(data);
+  return getBlog(config).then(function (blog) {
+    var apiKey = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',      
+        def = Q.defer();
+    blog.getUsersBlogs(apiKey, config.apiUser, config.apiPass, function (err, data) {
+      if (err || !data) {
+        def.reject(new Error('Could not get users blogs:' + err));        
+      }
+      if (data && data.length) {
+        data = data[0];
+      }
+      def.resolve(data);
+    });
+    return def.promise;
   });
-  return def.promise;
 };
 
 var setupBlog = function (info) {
@@ -193,11 +201,7 @@ var setupSpBlog = function (config) {
   if (config.url[config.url.length - 1] !== '/') {
     config.url += '/';
   }
-  config.url += '_layouts';
-  if (config.isSharepoint2013) {
-    config.url += '/15';
-  }
-  config.url += '/metaweblog.aspx';
+  config.url += '_layouts/metaweblog.aspx';
   return setupBlog(config);
 };
 
