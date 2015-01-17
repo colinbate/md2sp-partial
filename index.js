@@ -106,7 +106,7 @@ var checkUrl = function (blogConfig) {
 };
 
 var getBlog = function (blogConfig) {
-  var blog = new MetaWeblog(blogConfig.url, blogConfig.options);
+  var blog = new MetaWeblog(blogConfig.config.url, blogConfig.options);
   blog.config = blogConfig.config;
   return blog;
 };
