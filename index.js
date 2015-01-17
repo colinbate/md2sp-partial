@@ -146,7 +146,8 @@ var getUsersBlogs = function (config) {
         def = Q.defer();
     blog.getUsersBlogs(apiKey, config.apiUser, config.apiPass, function (err, data) {
       if (err || !data) {
-        def.reject(new Error('Could not get users blogs:' + err));        
+        def.reject(new Error('Could not get users blogs: ' + err));
+        return def.promise;       
       }
       if (data && data.length) {
         data = data[0];
