@@ -6,6 +6,7 @@ var toml = require('toml');
 var tomlify = require('tomlify');
 var formatter = require('./lib/formatter');
 var urlChecker = require('./lib/urlchecker');
+var path = require('path');
 
 var savePostFile = function (meta, payload, config, filename) {
   var metaStr, content, update = false;
@@ -84,8 +85,8 @@ var createBlogConfig = function (config) {
   }
   opts.ntlm =  ntlm;
   
-  if (config.cert) {    
-    promise = files.readAsync(config.certFile);
+  if (config.cert) {
+    promise = files.readAsync(path.join(config._folder, config.certFile));
   } 
   return promise.then(function (caCert) {
     if (caCert) {
