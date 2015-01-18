@@ -1,6 +1,8 @@
 # Markdown 2 Sharepoint
 
-Takes documents with TOML front matter and markdown content and posts them to a Sharepoint blog (or other MetaWeblog API blog). I've tested it with Sharepoint 2010 and Wordpress 4.0 but it should work with others. Supports normal API authentication as well as NTLM authentication.
+Takes documents with TOML front matter and markdown content and posts them to a Sharepoint blog (or other MetaWeblog API blog). I've tested it with Sharepoint 2010, Sharepoint 2013 and Wordpress 4.0 but it should work with others. Supports normal API authentication as well as NTLM authentication.
+
+Also supports inlining custom stylesheets and using custom CA certificates if needed. Useful for working with corporate certificates that node.js doesn't like.
 
 ## Installation
 
