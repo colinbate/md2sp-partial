@@ -112,7 +112,7 @@ var getBlog = function (blogConfig) {
 };
 
 var newPost = function (filename) {
-  return Q.all([parseFile(filename), config.get().then(getBlog)]).then(function (all) {
+  return Q.all([parseFile(filename), config.get().then(createBlogConfig).then(getBlog)]).then(function (all) {
     var c = all[1].config,
         def = Q.defer();
     all[1].newPost(c.blogid, c.apiUser, c.apiPass, all[0], true, function (err, data) {
@@ -127,7 +127,7 @@ var newPost = function (filename) {
 };
 
 var editPost = function (filename) {
-  return Q.all([parseFile(filename), config.get().then(getBlog)]).then(function (all) {
+  return Q.all([parseFile(filename), config.get().then(createBlogConfig).then(getBlog)]).then(function (all) {
     var c = all[1].config,
         def = Q.defer(),
         postId = '' + all[0].postid;

@@ -163,7 +163,7 @@ if (generate) {
       });
     }
   }).fail(function (err) {
-    console.log(''+err);
+    console.log('' + (err.stack || err));
     process.exit(1);
   });
 }
